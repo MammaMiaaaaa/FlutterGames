@@ -120,7 +120,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 32),
                             onPressed: () {
                               Navigator.of(context).popUntil((route) => route.isFirst);
                             gameProvider.resetGame();
@@ -278,7 +278,7 @@ class _TimerBox extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.access_time, color: Colors.white, size: 22),
+          const Icon(Icons.access_time, color: Colors.white, size: 24),
           const SizedBox(width: 8),
           Text('$minutes:$secs', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 20, color: Colors.white)),
         ],
