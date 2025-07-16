@@ -16,6 +16,7 @@ class MemoryGameProvider extends ChangeNotifier {
   bool _isGameOver = false;
   int _highScore = 0;
   VoidCallback? onGameOver;
+  VoidCallback? onLevelTransition;
 
   int get rows => _rows;
   int get columns => _columns;
@@ -85,7 +86,8 @@ class MemoryGameProvider extends ChangeNotifier {
   }
 
   void _setupCards(int columns, int rows) {
-    int numPairs = (columns * rows) ~/ 2;
+    int totalCards = columns * rows;
+    int numPairs = totalCards ~/ 2;
     final mutableImages = List<String>.from(_availableImages);
     mutableImages.shuffle(Random());
     final images = mutableImages.take(numPairs).toList();
@@ -94,11 +96,15 @@ class MemoryGameProvider extends ChangeNotifier {
       cardList.add(CardModel(id: i, imageAssetPath: images[i], isFlipped: false, isMatched: false));
       cardList.add(CardModel(id: i, imageAssetPath: images[i], isFlipped: false, isMatched: false));
     }
+    // If the grid size is odd, add a dummy card (invisible/blank)
+    if (totalCards % 2 != 0) {
+      cardList.add(CardModel(id: -1, imageAssetPath: '', isFlipped: true, isMatched: true));
+    }
     cardList.shuffle(Random());
     _cards = cardList;
   }
 
-  void _progressLevel() {
+  void progressLevel() {
     _level++;
     if (_level == 2) {
       _columns = 2;
@@ -106,12 +112,9 @@ class MemoryGameProvider extends ChangeNotifier {
     } else if (_level == 3) {
       _columns = 3;
       _rows = 4;
-    } else if (_level == 4) {
-      _columns = 4;
-      _rows = 4;
-    } else if (_level >= 5) {
-      _columns = 4;
-      _rows = 5;
+    } else if (_level >= 4) {
+      _columns = 3;
+      _rows = 6;
     }
     _flippedIndices.clear();
     _setupCards(_columns, _rows);
@@ -170,8 +173,12 @@ class MemoryGameProvider extends ChangeNotifier {
       _cards[second] = _cards[second].copyWith(isMatched: true);
       _score += 10;
       if (_cards.every((c) => c.isMatched)) {
-        // All pairs matched, go to next level
-        Future.delayed(const Duration(milliseconds: 600), _progressLevel);
+        // All pairs matched, trigger level transition
+        if (onLevelTransition != null) {
+          onLevelTransition!();
+        } else {
+          Future.delayed(const Duration(milliseconds: 600), progressLevel);
+        }
       }
     } else {
       _cards[first] = _cards[first].copyWith(isFlipped: false);
@@ -182,6 +189,7 @@ class MemoryGameProvider extends ChangeNotifier {
   }
 
   void resetGame() {
+    _level = 1;
     startNewGame(2, 3);
   }
 } 

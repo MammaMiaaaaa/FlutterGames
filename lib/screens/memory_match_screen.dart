@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../widgets/card_tile.dart';
 import '../models/memory_game_provider.dart';
+import '../widgets/score_screen.dart';
 
 class GridConfig with ChangeNotifier {
   int rows;
@@ -27,6 +29,9 @@ class MemoryMatchScreen extends StatefulWidget {
 }
 
 class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
+  bool _isTransitioning = false;
+  int _gridKey = 0;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +40,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       final provider = Provider.of<MemoryGameProvider>(context, listen: false);
       provider.initializeGame(columns: provider.columns, rows: provider.rows);
       provider.onGameOver = _showResultDialog;
+      provider.onLevelTransition = () {
+        _onLevelTransition();
+        provider.progressLevel();
+      };
     });
   }
 
@@ -47,32 +56,34 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
   void _showResultDialog() async {
     final provider = Provider.of<MemoryGameProvider>(context, listen: false);
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Time Up!'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Final Score: ${provider.score}', style: const TextStyle(fontSize: 20)),
-              const SizedBox(height: 8),
-              Text('High Score: ${provider.highScore}', style: const TextStyle(fontSize: 18, color: Colors.green)),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                provider.resetGame();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Play Again'),
-            ),
-          ],
-        );
-      },
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ScoreScreen(
+          resultText: 'Score ${provider.score}',
+          highScoreText: 'High Score: ${provider.highScore}',
+          onPlayAgain: () {
+            provider.resetGame();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const MemoryMatchScreen()),
+            );
+          },
+          onReturn: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
+        ),
+      ),
     );
+  }
+
+  void _onLevelTransition() async {
+    setState(() {
+      _isTransitioning = true;
+    });
+    await Future.delayed(const Duration(milliseconds: 300));
+    setState(() {
+      _gridKey++;
+      _isTransitioning = false;
+    });
   }
 
   @override
@@ -83,14 +94,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         final int columns = gameProvider.columns;
         final cards = gameProvider.cards;
         final int totalCards = cards.length;
+        final double topPadding = MediaQuery.of(context).padding.top;
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Memory Match'),
-            actions: [],
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-          ),
-          extendBodyBehindAppBar: true,
           body: Stack(
             fit: StackFit.expand,
             children: [
@@ -98,31 +103,80 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                 '/background/bg_forest.png',
                 fit: BoxFit.cover,
               ),
-              cards.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
+              Container(
+                color: Colors.black.withAlpha(122),
+              ),
+              // Main content as a Column
+              Column(
+                children: [
+                  // Header Row
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.only(top: topPadding + 12, left: 12, right: 12, bottom: 8),
+                    color: const Color.fromARGB(255, 0, 80, 157),
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        const SizedBox(height: kToolbarHeight + 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _TimerDisplay(seconds: gameProvider.timeLeft),
-                              _ScoreDisplay(score: gameProvider.score),
-                            ],
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                            onPressed: () {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            gameProvider.resetGame();
+                            },
                           ),
                         ),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 32),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                        Center(
+                          child: Text(
+                            'Memory Match',
+                            style: GoogleFonts.fredoka(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 28,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Score & Timer Bar
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: const Color.fromARGB(255, 0, 80, 157),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(child: _ScoreBox(score: gameProvider.score)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _TimerBox(seconds: gameProvider.timeLeft)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Card grid fills remaining space
+                  Expanded(
+                    child: cards.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : Padding(
+                            padding: const EdgeInsets.only(bottom: 32, top: 10),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 400),
+                                switchInCurve: Curves.easeIn,
+                                switchOutCurve: Curves.easeOut,
+                                transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                                child: AbsorbPointer(
+                                  absorbing: _isTransitioning,
                                   child: Container(
-                                    height: MediaQuery.of(context).size.height * 0.6,
+                                    key: ValueKey(_gridKey),
                                     width: double.infinity,
                                     alignment: Alignment.center,
                                     child: LayoutBuilder(
@@ -165,11 +219,11 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -178,34 +232,57 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   }
 }
 
-class _TimerDisplay extends StatelessWidget {
-  final int seconds;
-  const _TimerDisplay({required this.seconds});
+class _ScoreBox extends StatelessWidget {
+  final int score;
+  const _ScoreBox({required this.score});
   @override
   Widget build(BuildContext context) {
-    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
-    final secs = (seconds % 60).toString().padLeft(2, '0');
-    return Row(
-      children: [
-        const Icon(Icons.timer, color: Color(0xFFFFA000)),
-        const SizedBox(width: 4),
-        Text('$minutes:$secs', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFFA000))),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 0, 44, 86),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/icon/icon-star.png',
+            width: 22,
+            height: 22,
+            color: const Color.fromARGB(255, 255, 238, 7),
+          ),
+          const SizedBox(width: 8),
+          Text('$score', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 20, color: Colors.white)),
+        ],
+      ),
     );
   }
 }
 
-class _ScoreDisplay extends StatelessWidget {
-  final int score;
-  const _ScoreDisplay({required this.score});
+class _TimerBox extends StatelessWidget {
+  final int seconds;
+  const _TimerBox({required this.seconds});
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.star, color: Colors.green),
-        const SizedBox(width: 4),
-        Text('$score', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
-      ],
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 0, 44, 86),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.access_time, color: Colors.white, size: 22),
+          const SizedBox(width: 8),
+          Text('$minutes:$secs', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 20, color: Colors.white)),
+        ],
+      ),
     );
   }
 } 

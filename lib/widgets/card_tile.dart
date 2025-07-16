@@ -81,9 +81,9 @@ class _CardTileState extends State<CardTile> with SingleTickerProviderStateMixin
                   border: Border.all(color: Colors.white, width: 4),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.18),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: const Color.fromARGB(255, 53, 53, 53).withAlpha(255),
+                      blurRadius: 0,
+                      offset: Offset(0, 5),
                     ),
                   ],
                 ),

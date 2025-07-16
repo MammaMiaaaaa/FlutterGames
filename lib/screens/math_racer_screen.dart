@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../widgets/score_screen.dart';
 
 class MathRacerScreen extends StatefulWidget {
   const MathRacerScreen({super.key});
@@ -10,7 +12,7 @@ class MathRacerScreen extends StatefulWidget {
 }
 
 class _MathRacerScreenState extends State<MathRacerScreen> {
-  static const int totalTime = 60; // seconds
+  static const int totalTime = 120; // seconds
   static const int totalQuestions = 10;
   int timeLeft = totalTime;
   int correctAnswers = 0;
@@ -23,6 +25,7 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
   double previousPlayerProgress = 0.0;
   double previousTimerProgress = 0.0;
   double timerProgress = 0.0;
+  int highScore = 0;
 
   @override
   void initState() {
@@ -90,33 +93,34 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
       gameEnded = true;
       gameWon = won;
       timer.cancel();
+      if (won) {
+        int score = totalTime - timeLeft;
+        if (highScore == 0 || score < highScore) {
+          highScore = score;
+        }
+      }
     });
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(won ? 'You Win!' : 'Time Up!'),
-        content: Text(won
-            ? 'Congratulations! The Corgi beat the Rabbit!'
-            : 'The Rabbit won the race. Try again!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              setState(() {
-                _startGame();
-              });
-            },
-            child: const Text('Play Again'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).maybePop();
-            },
-            child: const Text('Exit'),
-          ),
-        ],
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ScoreScreen(
+          resultText: gameWon
+              ? 'Finished in ${((totalTime - timeLeft) ~/ 60)}:${((totalTime - timeLeft) % 60).toString().padLeft(2, '0')}!'
+              : 'Time Up!',
+          highScoreText: highScore > 0
+              ? 'Best Time: ${highScore ~/ 60}:${(highScore % 60).toString().padLeft(2, '0')}'
+              : '',
+          onPlayAgain: () {
+            setState(() {
+              _startGame();
+            });
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const MathRacerScreen()),
+            );
+          },
+          onReturn: () {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
+        ),
       ),
     );
   }
