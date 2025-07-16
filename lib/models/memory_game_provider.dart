@@ -76,7 +76,6 @@ class MemoryGameProvider extends ChangeNotifier {
     _timeLeft = 120;
     _isGameOver = false;
     _timer?.cancel();
-    _startTimer();
     _setupCards(_columns, _rows);
     notifyListeners();
   }
@@ -156,6 +155,9 @@ class MemoryGameProvider extends ChangeNotifier {
   void flipCard(int index) {
     if (_isGameOver) return;
     if (_cards[index].isFlipped || _cards[index].isMatched || _flippedIndices.length == 2) return;
+    if (_timer == null || !_timer!.isActive) {
+      _startTimer();
+    }
     _cards[index] = _cards[index].copyWith(isFlipped: true);
     _flippedIndices.add(index);
     notifyListeners();
