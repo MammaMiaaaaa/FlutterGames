@@ -86,14 +86,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Memory Match'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () {
-                  gameProvider.resetGame();
-                },
-              ),
-            ],
+            actions: [],
             backgroundColor: Colors.transparent,
             elevation: 0,
           ),

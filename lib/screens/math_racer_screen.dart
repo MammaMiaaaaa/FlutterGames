@@ -10,7 +10,7 @@ class MathRacerScreen extends StatefulWidget {
 }
 
 class _MathRacerScreenState extends State<MathRacerScreen> {
-  static const int totalTime = 120; // seconds
+  static const int totalTime = 60; // seconds
   static const int totalQuestions = 10;
   int timeLeft = totalTime;
   int correctAnswers = 0;
@@ -19,6 +19,10 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
   late MathQuestion question;
   bool gameEnded = false;
   bool gameWon = false;
+  double playerProgress = 0.0;
+  double previousPlayerProgress = 0.0;
+  double previousTimerProgress = 0.0;
+  double timerProgress = 0.0;
 
   @override
   void initState() {
@@ -32,11 +36,17 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
     currentQuestion = 0;
     gameEnded = false;
     gameWon = false;
+    playerProgress = 0.0;
+    previousPlayerProgress = 0.0;
+    timerProgress = 0.0;
+    previousTimerProgress = 0.0;
     _generateQuestion();
     timer = Timer.periodic(const Duration(seconds: 1), (t) {
       setState(() {
         if (timeLeft > 0 && !gameEnded) {
           timeLeft--;
+          previousTimerProgress = timerProgress;
+          timerProgress = 1 - (timeLeft / totalTime);
           if (timeLeft == 0) {
             _endGame(false);
           }
@@ -60,6 +70,8 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
     if (selected == question.answer) {
       setState(() {
         correctAnswers++;
+        previousPlayerProgress = playerProgress;
+        playerProgress = correctAnswers / totalQuestions;
         if (correctAnswers >= totalQuestions) {
           _endGame(true);
         } else {
@@ -136,25 +148,24 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              Text(
-                'Time Left: ${timeLeft ~/ 60}:${(timeLeft % 60).toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 24),
               // Rabbit Track
-              _RaceTrack(
+              _AnimatedRunnerTrack(
                 label: 'Rabbit',
-                progress: rabbitProgress,
+                begin: previousTimerProgress,
+                end: timerProgress,
                 icon: Icons.pets, // Placeholder for rabbit
                 color: Colors.orange,
+                showLabel: true,
               ),
               const SizedBox(height: 16),
               // Corgi Track
-              _RaceTrack(
+              _AnimatedRunnerTrack(
                 label: 'Corgi',
-                progress: corgiProgress,
+                begin: previousPlayerProgress,
+                end: playerProgress,
                 icon: Icons.pets, // Placeholder for corgi
                 color: Colors.brown,
+                showLabel: true,
               ),
               const SizedBox(height: 32),
               // Question
@@ -188,7 +199,6 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
                 ),
               )),
               const Spacer(),
-              Text('Correct Answers: $correctAnswers / $totalQuestions', style: const TextStyle(fontSize: 18)),
               const SizedBox(height: 16),
             ],
           ),
@@ -198,52 +208,75 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
   }
 }
 
-class _RaceTrack extends StatelessWidget {
+class _AnimatedRunnerTrack extends StatelessWidget {
   final String label;
-  final double progress;
+  final double begin;
+  final double end;
   final IconData icon;
   final Color color;
-  const _RaceTrack({required this.label, required this.progress, required this.icon, required this.color});
+  final bool showLabel;
+  const _AnimatedRunnerTrack({Key? key, required this.label, required this.begin, required this.end, required this.icon, required this.color, this.showLabel = false}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final barWidth = MediaQuery.of(context).size.width - 48 - 32;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          Container(
-            height: 32,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          FractionallySizedBox(
-            widthFactor: progress.clamp(0.0, 1.0),
-            child: Container(
+      child: SizedBox(
+        height: 48,
+        child: Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            // Track background
+            Container(
               height: 32,
+              width: double.infinity,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.5),
+                color: color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withOpacity(0.3), width: 2),
               ),
             ),
-          ),
-          Positioned(
-            left: (MediaQuery.of(context).size.width - 48 - 32) * progress.clamp(0.0, 1.0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: color,
-                  radius: 16,
-                  child: Icon(icon, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 8),
-                Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-              ],
+            // Animated progress bar fill
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: begin, end: end),
+              duration: const Duration(milliseconds: 400),
+              builder: (context, value, child) {
+                return Container(
+                  height: 32,
+                  width: barWidth * value.clamp(0.0, 1.0),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                );
+              },
             ),
-          ),
-        ],
+            // Animated runner icon
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: begin, end: end),
+              duration: const Duration(milliseconds: 400),
+              builder: (context, value, child) {
+                return Positioned(
+                  left: barWidth * value.clamp(0.0, 1.0),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: color,
+                        radius: 16,
+                        child: Icon(icon, color: Colors.white, size: 20),
+                      ),
+                      if (showLabel) ...[
+                        const SizedBox(width: 8),
+                        Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

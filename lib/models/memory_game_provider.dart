@@ -11,7 +11,7 @@ class MemoryGameProvider extends ChangeNotifier {
   List<CardModel> _cards = [];
   List<int> _flippedIndices = [];
   int _score = 0;
-  int _timeLeft = 180;
+  int _timeLeft = 120;
   Timer? _timer;
   bool _isGameOver = false;
   int _highScore = 0;
@@ -72,7 +72,7 @@ class MemoryGameProvider extends ChangeNotifier {
     _level = 1;
     _flippedIndices.clear();
     _score = 0;
-    _timeLeft = 180;
+    _timeLeft = 120;
     _isGameOver = false;
     _timer?.cancel();
     _startTimer();
