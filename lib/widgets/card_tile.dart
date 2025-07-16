@@ -110,12 +110,17 @@ class _CardTileState extends State<CardTile> with SingleTickerProviderStateMixin
 class _PawPrintIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      '/card/paw-print.png',
-      width: 40,
-      height: 40,
-      color: Colors.white,
-      fit: BoxFit.contain,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double iconSize = constraints.maxWidth * 0.45;
+        return Image.asset(
+          '/card/paw-print.png',
+          width: iconSize,
+          height: iconSize,
+          color: Colors.white,
+          fit: BoxFit.contain,
+        );
+      },
     );
   }
 } 

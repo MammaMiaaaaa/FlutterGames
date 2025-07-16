@@ -121,18 +121,58 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                           ),
                         ),
                         Expanded(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 400),
-                            child: GridView.builder(
-                              key: ValueKey('${gameProvider.rows}x${gameProvider.columns}'),
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                childAspectRatio: 1,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 32),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Container(
+                                    height: MediaQuery.of(context).size.height * 0.6,
+                                    width: double.infinity,
+                                    alignment: Alignment.center,
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final double spacing = 12;
+                                        final double totalWidth = constraints.maxWidth;
+                                        final double totalHeight = constraints.maxHeight;
+                                        final double gridWidth = totalWidth - (spacing * (columns - 1));
+                                        final double gridHeight = totalHeight - (spacing * (rows - 1));
+                                        final double cardWidth = gridWidth / columns;
+                                        final double cardHeight = gridHeight / rows;
+                                        return Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            for (int row = 0; row < rows; row++)
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  for (int col = 0; col < columns; col++)
+                                                    Padding(
+                                                      padding: EdgeInsets.only(
+                                                        right: col < columns - 1 ? spacing : 0,
+                                                        bottom: row < rows - 1 ? spacing : 0,
+                                                      ),
+                                                      child: SizedBox(
+                                                        width: cardWidth,
+                                                        height: cardHeight,
+                                                        child: CardTile(
+                                                          card: cards[row * columns + col],
+                                                          index: row * columns + col,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
                               ),
-                              itemCount: totalCards,
-                              itemBuilder: (context, index) => CardTile(card: cards[index], index: index),
-                            ),
+                            ],
                           ),
                         ),
                       ],
