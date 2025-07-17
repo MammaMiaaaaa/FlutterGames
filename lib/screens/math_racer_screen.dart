@@ -26,6 +26,26 @@ class _MathRacerGameView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<MathRacerGameProvider>(
       builder: (context, provider, _) {
+        // If the game is ended and not won, show the score screen (time up)
+        if (provider.gameEnded && !provider.gameWon) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ModalRoute.of(context)?.isCurrent ?? false) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => ScoreScreen(
+                    resultText: 'Time Up!',
+                    highScoreText: provider.highScore > 0
+                        ? 'Best Time: ${provider.highScore ~/ 60}:${(provider.highScore % 60).toString().padLeft(2, '0')}'
+                        : '',
+                    onPlayAgain: () {},
+                    onReturn: () {},
+                    gameType: GameType.mathRacer,
+                  ),
+                ),
+              );
+            }
+          });
+        }
         return Scaffold(
           appBar: AppBar(
             title: const Text('Math Racer'),

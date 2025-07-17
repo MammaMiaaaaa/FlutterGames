@@ -111,9 +111,8 @@ class ScoreScreen extends StatelessWidget {
                                 );
                                 break;
                               case GameType.mathRacer:
-                                Navigator.of(context).pushAndRemoveUntil(
+                                Navigator.of(context).pushReplacement(
                                   MaterialPageRoute(builder: (_) => const MathRacerScreen()),
-                                  (route) => false,
                                 );
                                 break;
                             }
