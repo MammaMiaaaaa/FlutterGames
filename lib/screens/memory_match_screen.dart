@@ -68,6 +68,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             );
           },
           onReturn: () {
+            provider.resetGame();
             Navigator.of(context).popUntil((route) => route.isFirst);
           },
         ),
@@ -95,6 +96,24 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         final cards = gameProvider.cards;
         final int totalCards = cards.length;
         final double topPadding = MediaQuery.of(context).padding.top;
+        final Size screenSize = MediaQuery.of(context).size;
+        final double screenWidth = screenSize.width;
+        final double screenHeight = screenSize.height;
+        final double headerFontSize = screenWidth * 0.055;
+        final double instructionFontSize = screenWidth * 0.052;
+        final double iconSize = screenWidth * 0.06;
+        final double scoreTimerFontSize = screenWidth * 0.05;
+        final double headerPadTop = topPadding + screenHeight * 0.02;
+        final double headerPadLR = screenWidth * 0.03;
+        final double headerPadBottom = screenHeight * 0.02;
+        final double instructionPadTop = screenHeight * 0.02;
+        final double instructionPadBottom = screenHeight * 0.005;
+        final double gridPadTop = screenHeight * 0.025;
+        final double gridPadBottom = screenHeight * 0.06;
+        final double gridPadHorizontal = screenWidth * 0.06;
+        final double cardSpacing = screenWidth * 0.03;
+        final double headerElementMargin = screenWidth * 0.02;
+        final double headerElementMarginWide = screenWidth * 0.025;
         return Scaffold(
           body: Stack(
             fit: StackFit.expand,
@@ -112,51 +131,65 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                   // Header Row
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.only(top: topPadding + 12, left: 12, right: 12, bottom: 8),
+                    padding: EdgeInsets.only(
+                      top: headerPadTop,
+                      left: headerPadLR,
+                      right: headerPadLR,
+                      bottom: headerPadBottom,
+                    ),
                     color: const Color.fromARGB(255, 0, 80, 157),
-                    child: Stack(
-                      alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
+                        // Close (X) button with left margin
+                        Padding(
+                          padding: EdgeInsets.only(left: headerElementMarginWide, right: headerElementMargin),
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 32),
+                            icon: Icon(Icons.arrow_back, color: Colors.white, size: iconSize),
                             onPressed: () {
                               Navigator.of(context).popUntil((route) => route.isFirst);
-                            gameProvider.resetGame();
+                              gameProvider.resetGame();
                             },
                           ),
                         ),
-                        Center(
-                          child: Text(
-                            'Memory Match',
-                            style: GoogleFonts.fredoka(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 28,
-                              color: Colors.white,
-                            ),
+                        // Score box (left half) with horizontal margin
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: headerElementMargin),
+                            child: _ScoreBox(score: gameProvider.score, iconSize: iconSize, fontSize: scoreTimerFontSize),
+                          ),
+                        ),
+                        // Timer box (right half) with right margin
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(left: headerElementMargin, right: headerElementMarginWide),
+                            child: _TimerBox(seconds: gameProvider.timeLeft, iconSize: iconSize, fontSize: scoreTimerFontSize),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Score & Timer Bar
+                  // Instruction text below header
                   Container(
                     width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: const Color.fromARGB(255, 0, 80, 157),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(24),
-                        bottomRight: Radius.circular(24),
+                    color: Colors.transparent,
+                    padding: EdgeInsets.only(top: instructionPadTop, bottom: instructionPadBottom),
+                    child: Text(
+                      'Temukan pasangan gambar\nyang sama!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.fredoka(
+                        fontWeight: FontWeight.w600,
+                        fontSize: instructionFontSize,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            blurRadius: 4,
+                            color: Colors.black.withOpacity(0.4),
+                            offset: const Offset(1, 2),
+                          ),
+                        ],
                       ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Expanded(child: _ScoreBox(score: gameProvider.score)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _TimerBox(seconds: gameProvider.timeLeft)),
-                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -165,9 +198,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                     child: cards.isEmpty
                         ? const Center(child: CircularProgressIndicator())
                         : Padding(
-                            padding: const EdgeInsets.only(bottom: 32, top: 10),
+                            padding: EdgeInsets.only(bottom: gridPadBottom, top: gridPadTop),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: EdgeInsets.symmetric(horizontal: gridPadHorizontal),
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 400),
                                 switchInCurve: Curves.easeIn,
@@ -181,7 +214,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                                     alignment: Alignment.center,
                                     child: LayoutBuilder(
                                       builder: (context, constraints) {
-                                        final double spacing = 12;
+                                        final double spacing = cardSpacing;
                                         final double totalWidth = constraints.maxWidth;
                                         final double totalHeight = constraints.maxHeight;
                                         final double gridWidth = totalWidth - (spacing * (columns - 1));
@@ -234,7 +267,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
 class _ScoreBox extends StatelessWidget {
   final int score;
-  const _ScoreBox({required this.score});
+  final double iconSize;
+  final double fontSize;
+  const _ScoreBox({required this.score, this.iconSize = 22, this.fontSize = 20});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -249,12 +284,12 @@ class _ScoreBox extends StatelessWidget {
         children: [
           Image.asset(
             'assets/icon/icon-star.png',
-            width: 22,
-            height: 22,
+            width: iconSize,
+            height: iconSize,
             color: const Color.fromARGB(255, 255, 238, 7),
           ),
           const SizedBox(width: 8),
-          Text('$score', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 20, color: Colors.white)),
+          Text('$score', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: fontSize, color: Colors.white)),
         ],
       ),
     );
@@ -263,7 +298,9 @@ class _ScoreBox extends StatelessWidget {
 
 class _TimerBox extends StatelessWidget {
   final int seconds;
-  const _TimerBox({required this.seconds});
+  final double iconSize;
+  final double fontSize;
+  const _TimerBox({required this.seconds, this.iconSize = 24, this.fontSize = 20});
   @override
   Widget build(BuildContext context) {
     final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
@@ -278,9 +315,9 @@ class _TimerBox extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.access_time, color: Colors.white, size: 24),
+          Icon(Icons.access_time, color: Colors.white, size: iconSize),
           const SizedBox(width: 8),
-          Text('$minutes:$secs', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 20, color: Colors.white)),
+          Text('$minutes:$secs', style: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: fontSize, color: Colors.white)),
         ],
       ),
     );
