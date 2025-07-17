@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/card_tile.dart';
 import '../models/memory_game_provider.dart';
 import '../widgets/score_screen.dart';
+import 'game_selection_screen.dart';
 
 class GridConfig with ChangeNotifier {
   int rows;
@@ -23,6 +24,7 @@ class GridConfig with ChangeNotifier {
 
 class MemoryMatchScreen extends StatefulWidget {
   const MemoryMatchScreen({super.key});
+  
 
   @override
   State<MemoryMatchScreen> createState() => _MemoryMatchScreenState();
@@ -44,6 +46,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         _onLevelTransition();
         provider.progressLevel();
       };
+      provider.resetGame();
     });
   }
 
@@ -71,6 +74,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             provider.resetGame();
             Navigator.of(context).popUntil((route) => route.isFirst);
           },
+          gameType: GameType.memoryMatch,
         ),
       ),
     );
@@ -119,7 +123,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             fit: StackFit.expand,
             children: [
               Image.asset(
-                '/background/bg_forest.png',
+                '/background/bg_forest.jpg',
                 fit: BoxFit.cover,
               ),
               Container(
@@ -148,8 +152,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                           child: IconButton(
                             icon: Icon(Icons.arrow_back, color: Colors.white, size: iconSize),
                             onPressed: () {
-                              Navigator.of(context).popUntil((route) => route.isFirst);
-                              gameProvider.resetGame();
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (_) => const GameSelectionScreen()),
+                                (route) => false,
+                              );
                             },
                           ),
                         ),

@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
+import '../screens/memory_match_screen.dart';
+import '../screens/math_racer_screen.dart';
+import '../screens/game_selection_screen.dart';
+
+enum GameType {
+  memoryMatch,
+  mathRacer,
+}
 
 class ScoreScreen extends StatelessWidget {
   final String resultText;
   final String highScoreText;
   final VoidCallback onPlayAgain;
   final VoidCallback onReturn;
+  final GameType gameType;
   const ScoreScreen({
     super.key,
     required this.resultText,
     required this.highScoreText,
     required this.onPlayAgain,
     required this.onReturn,
+    required this.gameType,
   });
 
   @override
@@ -91,7 +101,23 @@ class ScoreScreen extends StatelessWidget {
                             textStyle: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 24),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                           ),
-                          onPressed: onPlayAgain,
+                          onPressed: () {
+                            // Play Again: push the correct game screen and reset state
+                            switch (gameType) {
+                              case GameType.memoryMatch:
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const MemoryMatchScreen()),
+                                  (route) => false,
+                                );
+                                break;
+                              case GameType.mathRacer:
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const MathRacerScreen()),
+                                  (route) => false,
+                                );
+                                break;
+                            }
+                          },
                           child: const Text('Play Again'),
                         ),
                       ),
@@ -106,7 +132,12 @@ class ScoreScreen extends StatelessWidget {
                             textStyle: GoogleFonts.fredoka(fontWeight: FontWeight.w600, fontSize: 24),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                           ),
-                          onPressed: onReturn,
+                          onPressed: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const GameSelectionScreen()),
+                              (route) => false,
+                            );
+                          },
                           child: const Text('Return'),
                         ),
                       ),

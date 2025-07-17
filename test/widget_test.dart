@@ -8,23 +8,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:animal_edu_games/main.dart';
+import 'package:animal_edu_games/app.dart';
+import 'package:animal_edu_games/screens/math_racer_screen.dart' show _AnimatedAnswerButton, MathRacerScreen;
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App launches without crashing', (WidgetTester tester) async {
+    await tester.pumpWidget(const App());
+    expect(find.byType(App), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('MathRacerScreen answer button tap does not crash', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: MathRacerScreen()));
+    await tester.pumpAndSettle();
+    // Find the first answer button by key
+    final answerButton = find.byKey(const Key('answer_button_0'));
+    expect(answerButton, findsOneWidget);
+    await tester.tap(answerButton);
+    await tester.pumpAndSettle();
+    // If we reach here without an exception, the test passes
+    expect(true, isTrue);
   });
 }

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/score_screen.dart';
+import '../screens/game_selection_screen.dart'; // Added import for GameSelectionScreen
 
 class MathRacerScreen extends StatefulWidget {
   const MathRacerScreen({super.key});
@@ -12,7 +13,7 @@ class MathRacerScreen extends StatefulWidget {
 }
 
 class _MathRacerScreenState extends State<MathRacerScreen> {
-  static const int totalTime = 120; // seconds
+  static const int totalTime = 60; // seconds
   static const int totalQuestions = 10;
   int timeLeft = totalTime;
   int correctAnswers = 0;
@@ -75,12 +76,17 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
         correctAnswers++;
         previousPlayerProgress = playerProgress;
         playerProgress = correctAnswers / totalQuestions;
-        if (correctAnswers >= totalQuestions) {
-          _endGame(true);
-        } else {
-          _generateQuestion();
-        }
       });
+      if (correctAnswers >= totalQuestions) {
+        // End the game and go to score screen
+        gameEnded = true;
+        _endGame(true);
+        return;
+      } else {
+        setState(() {
+          _generateQuestion();
+        });
+      }
     } else {
       setState(() {
         _generateQuestion();
@@ -89,10 +95,12 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
   }
 
   void _endGame(bool won) {
+    if (gameEnded && !won) return; // Prevent multiple calls, but allow final win
+    gameEnded = true;
+    timer.cancel();
+    if (!mounted) return;
     setState(() {
-      gameEnded = true;
       gameWon = won;
-      timer.cancel();
       if (won) {
         int score = totalTime - timeLeft;
         if (highScore == 0 || score < highScore) {
@@ -100,29 +108,26 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
         }
       }
     });
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => ScoreScreen(
-          resultText: gameWon
-              ? 'Finished in ${((totalTime - timeLeft) ~/ 60)}:${((totalTime - timeLeft) % 60).toString().padLeft(2, '0')}!'
-              : 'Time Up!',
-          highScoreText: highScore > 0
-              ? 'Best Time: ${highScore ~/ 60}:${(highScore % 60).toString().padLeft(2, '0')}'
-              : '',
-          onPlayAgain: () {
-            setState(() {
-              _startGame();
-            });
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const MathRacerScreen()),
-            );
-          },
-          onReturn: () {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
+    if (!mounted) return;
+    try {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ScoreScreen(
+            resultText: gameWon
+                ? 'Finished in ${((totalTime - timeLeft) ~/ 60)}:${((totalTime - timeLeft) % 60).toString().padLeft(2, '0')}!'
+                : 'Time Up!',
+            highScoreText: highScore > 0
+                ? 'Best Time: ${highScore ~/ 60}:${(highScore % 60).toString().padLeft(2, '0')}'
+                : '',
+            onPlayAgain: () {}, // Not used, handled in ScoreScreen
+            onReturn: () {},   // Not used, handled in ScoreScreen
+            gameType: GameType.mathRacer,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      // ignore navigation errors
+    }
   }
 
   double get rabbitProgress => 1 - (timeLeft / totalTime);
@@ -140,72 +145,87 @@ class _MathRacerScreenState extends State<MathRacerScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFB2FEFA), Color(0xFF0ED2F7)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              // Rabbit Track
-              _AnimatedRunnerTrack(
-                label: 'Rabbit',
-                begin: previousTimerProgress,
-                end: timerProgress,
-                icon: Icons.pets, // Placeholder for rabbit
-                color: Colors.orange,
-                showLabel: true,
-              ),
-              const SizedBox(height: 16),
-              // Corgi Track
-              _AnimatedRunnerTrack(
-                label: 'Corgi',
-                begin: previousPlayerProgress,
-                end: playerProgress,
-                icon: Icons.pets, // Placeholder for corgi
-                color: Colors.brown,
-                showLabel: true,
-              ),
-              const SizedBox(height: 32),
-              // Question
-              Card(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text(
-                    question.question,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
+        decoration: const BoxDecoration(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              '/background/bg_grass.jpg',
+              fit: BoxFit.cover,
+            ),
+            SafeArea(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
+                  // Rabbit Track
+                  _AnimatedRunnerTrack(
+                    label: 'Rabbit',
+                    begin: previousTimerProgress,
+                    end: timerProgress,
+                    icon: Icons.pets, // Placeholder for rabbit
+                    color: Colors.orange,
+                    showLabel: true,
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Answer Buttons
-              ...List.generate(4, (i) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  const SizedBox(height: 16),
+                  // Corgi Track
+                  _AnimatedRunnerTrack(
+                    label: 'Corgi',
+                    begin: previousPlayerProgress,
+                    end: playerProgress,
+                    icon: Icons.pets, // Placeholder for corgi
+                    color: Colors.brown,
+                    showLabel: true,
+                  ),
+                  const SizedBox(height: 32),
+                  // Question Box with instruction
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    onPressed: gameEnded ? null : () => _answer(question.options[i]),
-                    child: Text('${question.options[i]}'),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Pilih jawaban yang benar',
+                          style: GoogleFonts.fredoka(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          question.question,
+                          style: GoogleFonts.fredoka(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 28,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              )),
-              const Spacer(),
-              const SizedBox(height: 16),
-            ],
-          ),
+                  const SizedBox(height: 24),
+                  // Answer Buttons
+                  ...List.generate(4, (i) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                    child: _AnimatedAnswerButton(
+                      key: Key('answer_button_$i'),
+                      text: '${question.options[i]}',
+                      onPressed: gameEnded ? null : () => _answer(question.options[i]),
+                    ),
+                  )),
+                  const Spacer(),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -330,5 +350,114 @@ class MathQuestion {
     }
     List<int> opts = options.toList()..shuffle();
     return MathQuestion(question: q, answer: ans, options: opts);
+  }
+}
+
+class _AnimatedAnswerButton extends StatefulWidget {
+  final String text;
+  final VoidCallback? onPressed;
+  const _AnimatedAnswerButton({Key? key, required this.text, required this.onPressed}) : super(key: key);
+
+  @override
+  State<_AnimatedAnswerButton> createState() => _AnimatedAnswerButtonState();
+}
+
+class _AnimatedAnswerButtonState extends State<_AnimatedAnswerButton> {
+  bool _pressed = false;
+
+  void _onTapDown(TapDownDetails details) {
+    if (widget.onPressed != null) {
+      setState(() {
+        _pressed = true;
+      });
+    }
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    if (widget.onPressed != null) {
+      setState(() {
+        _pressed = false;
+      });
+    }
+  }
+
+  void _onTapCancel() {
+    if (widget.onPressed != null) {
+      setState(() {
+        _pressed = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double buttonHeight = 54;
+    final double baseOffset = 6;
+    final bool isDisabled = widget.onPressed == null;
+    return GestureDetector(
+      onTapDown: isDisabled ? null : _onTapDown,
+      onTapUp: isDisabled
+          ? null
+          : (details) {
+              _onTapUp(details);
+              if (widget.onPressed != null) widget.onPressed!();
+            },
+      onTapCancel: isDisabled ? null : _onTapCancel,
+      child: Opacity(
+        opacity: isDisabled ? 0.5 : 1.0,
+        child: SizedBox(
+          height: buttonHeight + baseOffset,
+          child: Stack(
+            children: [
+              // Dark green base with offset
+              Positioned(
+                top: baseOffset,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: buttonHeight,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1B5E20),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+              // Animated white box
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 80),
+                curve: Curves.easeIn,
+                top: _pressed ? baseOffset : 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: buttonHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      if (!_pressed)
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    widget.text,
+                    style: GoogleFonts.fredoka(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      color: const Color(0xFF1B5E20),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 } 
