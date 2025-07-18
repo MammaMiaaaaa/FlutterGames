@@ -194,7 +194,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                             color: Colors.black.withOpacity(0.4),
                             offset: const Offset(1, 2),
                           ),
-                        ],
+                      ],
                       ),
                     ),
                   ),

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,32 +18,61 @@ class MathRacerScreen extends StatelessWidget {
   }
 }
 
-class _MathRacerGameView extends StatelessWidget {
+class _MathRacerGameView extends StatefulWidget {
   const _MathRacerGameView({Key? key}) : super(key: key);
+
+  @override
+  State<_MathRacerGameView> createState() => _MathRacerGameViewState();
+}
+
+class _MathRacerGameViewState extends State<_MathRacerGameView> {
+  bool _navigatedToScoreScreen = false;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<MathRacerGameProvider>(
       builder: (context, provider, _) {
-        // If the game is ended and not won, show the score screen (time up)
-        if (provider.gameEnded && !provider.gameWon) {
+        final Size screenSize = MediaQuery.of(context).size;
+        final double screenWidth = screenSize.width;
+        final double screenHeight = screenSize.height;
+        final double trackHeight = screenHeight * 0.08; // e.g. 8% of height
+        final double trackIconSize = trackHeight * 0.8;
+        final double finishLineSize = trackHeight;
+        final double trackSpacing = screenHeight * 0.00;
+        final double questionBoxPadV = screenHeight * 0.03;
+        final double questionBoxPadH = screenWidth * 0.04;
+        final double questionFontSize = screenWidth * 0.08;
+        final double instructionFontSize = screenWidth * 0.05;
+        final double buttonHeight = screenHeight * 0.08;
+        final double buttonFontSize = buttonHeight * 0.5;
+        final double buttonSpacing = screenHeight * 0.018;
+        final double topPad = screenHeight * 0.03;
+        final double sidePad = screenWidth * 0.04;
+        final options = provider.question.options.toList(); // Local copy
+        final double finishLineRightPadding = screenWidth * 0.04; // Adjustable right padding for finish line
+        // Navigate to score screen if time is up and not already navigated
+        if (provider.gameEnded && !provider.gameWon && !_navigatedToScoreScreen) {
+          _navigatedToScoreScreen = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (ModalRoute.of(context)?.isCurrent ?? false) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => ScoreScreen(
-                    resultText: 'Time Up!',
-                    highScoreText: provider.highScore > 0
-                        ? 'Best Time: ${provider.highScore ~/ 60}:${(provider.highScore % 60).toString().padLeft(2, '0')}'
-                        : '',
-                    onPlayAgain: () {},
-                    onReturn: () {},
-                    gameType: GameType.mathRacer,
-                  ),
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => ScoreScreen(
+                  resultText: 'Time Up!',
+                  highScoreText: provider.highScore > 0
+                      ? 'Best Time: ${provider.highScore ~/ 60}:${(provider.highScore % 60).toString().padLeft(2, '0')}'
+                      : '',
+                  onPlayAgain: () {},
+                  onReturn: () {},
+                  gameType: GameType.mathRacer,
                 ),
-              );
-            }
+              ),
+            );
           });
+        }
+        // Defensive: Only show answer buttons if options.length == 4
+        if (options.length != 4) {
+          return const Center(child: CircularProgressIndicator());
         }
         return Scaffold(
           appBar: AppBar(
@@ -68,31 +96,108 @@ class _MathRacerGameView extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 24),
-                      // Rabbit Track
-                      _AnimatedRunnerTrack(
-                        label: 'Rabbit',
-                        begin: provider.previousTimerProgress,
-                        end: provider.timerProgress,
-                        icon: Icons.pets, // Placeholder for rabbit
-                        color: Colors.orange,
-                        showLabel: true,
+                      SizedBox(height: topPad),
+                      // --- Two-Track Race Progress Bar ---
+                      Container(
+                        width: double.infinity,
+                        height: trackHeight * 2 + trackSpacing,
+                        child: Column(
+                          children: [
+                            // Top track: Bingo (Corgi)
+                            SizedBox(
+                              height: trackHeight,
+                              child: Stack(
+                                alignment: Alignment.centerLeft,
+                                children: [
+                                  Positioned.fill(
+                                    child: Image.asset(
+                                      'assets/images/race-track.png',
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: finishLineRightPadding,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Image.asset(
+                                      'assets/images/finish-line.png',
+                                      height: finishLineSize,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  TweenAnimationBuilder<double>(
+                                    tween: Tween<double>(
+                                      begin: provider.previousPlayerProgress,
+                                      end: provider.playerProgress,
+                                    ),
+                                    duration: const Duration(milliseconds: 400),
+                                    builder: (context, value, child) {
+                                      return Positioned(
+                                        left: (screenWidth - finishLineRightPadding - trackIconSize / 2) * value.clamp(0.0, 1.0),
+                                        top: 0,
+                                        child: Image.asset(
+                                          'assets/bingo/icon-bingo-walk.png',
+                                          height: trackIconSize,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: trackSpacing),
+                            // Bottom track: Rabbit
+                            SizedBox(
+                              height: trackHeight,
+                              child: Stack(
+                                alignment: Alignment.centerLeft,
+                                children: [
+                                  Positioned.fill(
+                                    child: Image.asset(
+                                      'assets/images/race-track.png',
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: finishLineRightPadding,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Image.asset(
+                                      'assets/images/finish-line.png',
+                                      height: finishLineSize,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                  TweenAnimationBuilder<double>(
+                                    tween: Tween<double>(
+                                      begin: provider.previousTimerProgress,
+                                      end: provider.timerProgress,
+                                    ),
+                                    duration: const Duration(milliseconds: 400),
+                                    builder: (context, value, child) {
+                                      return Positioned(
+                                        left: (screenWidth - finishLineRightPadding) * value.clamp(0.0, 1.0),
+                                        top: 0,
+                                        child: Image.asset(
+                                          'assets/images/rabbit.png',
+                                          height: trackIconSize,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      // Corgi Track
-                      _AnimatedRunnerTrack(
-                        label: 'Corgi',
-                        begin: provider.previousPlayerProgress,
-                        end: provider.playerProgress,
-                        icon: Icons.pets, // Placeholder for corgi
-                        color: Colors.brown,
-                        showLabel: true,
-                      ),
-                      const SizedBox(height: 32),
+                      SizedBox(height: screenHeight * 0.04),
                       // Question Box with instruction
                       Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20),
-                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                        margin: EdgeInsets.symmetric(horizontal: sidePad),
+                        padding: EdgeInsets.symmetric(vertical: questionBoxPadV, horizontal: questionBoxPadH),
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.5),
@@ -104,16 +209,16 @@ class _MathRacerGameView extends StatelessWidget {
                               'Pilih jawaban yang benar',
                               style: GoogleFonts.fredoka(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 20,
+                                fontSize: instructionFontSize,
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: screenHeight * 0.01),
                             Text(
                               provider.question.question,
                               style: GoogleFonts.fredoka(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 28,
+                                fontSize: questionFontSize,
                                 color: Colors.white,
                               ),
                               textAlign: TextAlign.center,
@@ -121,18 +226,23 @@ class _MathRacerGameView extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: screenHeight * 0.05),
                       // Answer Buttons
                       ...List.generate(4, (i) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                        child: _AnimatedAnswerButton(
-                          key: Key('answer_button_$i'),
-                          text: '${provider.question.options[i]}',
-                          onPressed: provider.gameEnded ? null : () => _onAnswer(context, provider, provider.question.options[i]),
+                        padding: EdgeInsets.fromLTRB(sidePad, 10, sidePad, 0),
+                        child: SizedBox(
+                          height: buttonHeight,
+                          width: double.infinity,
+                          child: _AnimatedAnswerButton(
+                            key: Key('answer_button_$i'),
+                            text: '${options[i]}',
+                            onPressed: provider.gameEnded ? null : () => _onAnswer(context, provider, options[i]),
+                            fontSize: buttonFontSize,
+                          ),
                         ),
                       )),
                       const Spacer(),
-                      const SizedBox(height: 16),
+                      SizedBox(height: screenHeight * 0.02),
                     ],
                   ),
                 ),
@@ -145,99 +255,29 @@ class _MathRacerGameView extends StatelessWidget {
   }
 
   void _onAnswer(BuildContext context, MathRacerGameProvider provider, int selected) {
+    if (_navigatedToScoreScreen) return;
     provider.answer(selected);
-    if (provider.gameEnded) {
-      // Show score screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => ScoreScreen(
-            resultText: provider.gameWon
-                ? 'Finished in ${((MathRacerGameProvider.totalTime - provider.timeLeft) ~/ 60)}:${((MathRacerGameProvider.totalTime - provider.timeLeft) % 60).toString().padLeft(2, '0')}!'
-                : 'Time Up!',
-            highScoreText: provider.highScore > 0
-                ? 'Best Time: ${provider.highScore ~/ 60}:${(provider.highScore % 60).toString().padLeft(2, '0')}'
-                : '',
-            onPlayAgain: () {}, // handled in ScoreScreen
-            onReturn: () {},   // handled in ScoreScreen
-            gameType: GameType.mathRacer,
+    if (provider.gameEnded && !_navigatedToScoreScreen) {
+      _navigatedToScoreScreen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ScoreScreen(
+              resultText: provider.gameWon
+                  ? 'Finished in ${((MathRacerGameProvider.totalTime - provider.timeLeft) ~/ 60)}:${((MathRacerGameProvider.totalTime - provider.timeLeft) % 60).toString().padLeft(2, '0')}!'
+                  : 'Time Up!',
+              highScoreText: provider.highScore > 0
+                  ? 'Best Time: ${provider.highScore ~/ 60}:${(provider.highScore % 60).toString().padLeft(2, '0')}'
+                  : '',
+              onPlayAgain: () {}, // handled in ScoreScreen
+              onReturn: () {},   // handled in ScoreScreen
+              gameType: GameType.mathRacer,
+            ),
           ),
-        ),
-      );
+        );
+      });
     }
-  }
-}
-
-class _AnimatedRunnerTrack extends StatelessWidget {
-  final String label;
-  final double begin;
-  final double end;
-  final IconData icon;
-  final Color color;
-  final bool showLabel;
-  const _AnimatedRunnerTrack({Key? key, required this.label, required this.begin, required this.end, required this.icon, required this.color, this.showLabel = false}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final barWidth = MediaQuery.of(context).size.width - 48 - 32;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: SizedBox(
-        height: 48,
-        child: Stack(
-          alignment: Alignment.centerLeft,
-          children: [
-            // Track background
-            Container(
-              height: 32,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withOpacity(0.3), width: 2),
-              ),
-            ),
-            // Animated progress bar fill
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: begin, end: end),
-              duration: const Duration(milliseconds: 400),
-              builder: (context, value, child) {
-                return Container(
-                  height: 32,
-                  width: barWidth * value.clamp(0.0, 1.0),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                );
-              },
-            ),
-            // Animated runner icon
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: begin, end: end),
-              duration: const Duration(milliseconds: 400),
-              builder: (context, value, child) {
-                return Positioned(
-                  left: barWidth * value.clamp(0.0, 1.0),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: color,
-                        radius: 16,
-                        child: Icon(icon, color: Colors.white, size: 20),
-                      ),
-                      if (showLabel) ...[
-                        const SizedBox(width: 8),
-                        Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -291,7 +331,8 @@ class MathQuestion {
 class _AnimatedAnswerButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
-  const _AnimatedAnswerButton({Key? key, required this.text, required this.onPressed}) : super(key: key);
+  final double? fontSize;
+  const _AnimatedAnswerButton({Key? key, required this.text, required this.onPressed, this.fontSize}) : super(key: key);
 
   @override
   State<_AnimatedAnswerButton> createState() => _AnimatedAnswerButtonState();
@@ -328,6 +369,7 @@ class _AnimatedAnswerButtonState extends State<_AnimatedAnswerButton> {
   Widget build(BuildContext context) {
     final double buttonHeight = 54;
     final double baseOffset = 6;
+    final double effectiveFontSize = widget.fontSize ?? 22;
     final bool isDisabled = widget.onPressed == null;
     return GestureDetector(
       onTapDown: isDisabled ? null : _onTapDown,
@@ -383,7 +425,7 @@ class _AnimatedAnswerButtonState extends State<_AnimatedAnswerButton> {
                     widget.text,
                     style: GoogleFonts.fredoka(
                       fontWeight: FontWeight.w600,
-                      fontSize: 22,
+                      fontSize: effectiveFontSize,
                       color: const Color(0xFF1B5E20),
                     ),
                   ),
