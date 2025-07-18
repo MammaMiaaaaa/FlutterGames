@@ -7,6 +7,7 @@ import '../models/math_racer_game_provider.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'package:flutter/animation.dart';
+import 'package:animated_text_kit/animated_text_kit.dart';
 
 class MathRacerScreen extends StatelessWidget {
   const MathRacerScreen({super.key});
@@ -29,10 +30,9 @@ class _MathRacerGameView extends StatefulWidget {
 
 class _MathRacerGameViewState extends State<_MathRacerGameView> with SingleTickerProviderStateMixin {
   bool _navigatedToScoreScreen = false;
-  int _countdown = 3;
-  bool _showGo = false;
   bool _countdownDone = false;
-  Timer? _countdownTimer;
+  int _countdownIndex = 0;
+  final List<String> countdownSequence = ['3', '2', '1', 'GO'];
   late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
 
@@ -41,55 +41,46 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> with SingleTicke
     super.initState();
     _scaleController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 700),
     );
     _scaleAnimation = CurvedAnimation(
       parent: _scaleController,
-      curve: Curves.easeOutBack,
+      curve: Curves.elasticOut,
     );
     _startCountdown();
   }
 
   void _startCountdown() {
     setState(() {
-      _countdown = 3;
-      _showGo = false;
+      _countdownIndex = 0;
       _countdownDone = false;
     });
-    _countdownTimer?.cancel();
-    _scaleController.forward(from: 0);
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_countdown > 1) {
-        setState(() {
-          _countdown--;
-          _scaleController.forward(from: 0);
-        });
-      } else if (_countdown == 1) {
-        setState(() {
-          _countdown = 0;
-          _showGo = true;
-          _scaleController.forward(from: 0);
-        });
-        Future.delayed(const Duration(milliseconds: 700), () {
-          if (mounted) {
-            setState(() {
-              _showGo = false;
-              _countdownDone = true;
-              _scaleController.stop();
-            });
-            // Start the game timer and logic after countdown
-            final provider = Provider.of<MathRacerGameProvider>(context, listen: false);
-            provider.startGame();
-          }
-        });
-        _countdownTimer?.cancel();
-      }
-    });
+    _runNextTick();
+  }
+
+  void _runNextTick() {
+    if (_countdownIndex < countdownSequence.length) {
+      _scaleController.forward(from: 0);
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          setState(() {
+            _countdownIndex++;
+          });
+          _runNextTick();
+        }
+      });
+    } else {
+      setState(() {
+        _countdownDone = true;
+      });
+      // Start the game timer and logic after countdown
+      final provider = Provider.of<MathRacerGameProvider>(context, listen: false);
+      provider.startGame();
+    }
   }
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
     _scaleController.dispose();
     super.dispose();
   }
@@ -136,7 +127,6 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> with SingleTicke
             );
           });
         }
-        // Defensive: Only show game UI if countdown is done, question is ready, and options are valid
         if (!_countdownDone || provider.question == null || options.length != 4) {
           return Stack(
             fit: StackFit.expand,
@@ -145,49 +135,31 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> with SingleTicke
                 'assets/background/bg_grass.jpg',
                 fit: BoxFit.cover,
               ),
-              // Countdown overlay
               if (!_countdownDone)
                 Positioned.fill(
                   child: Container(
                     color: Colors.black.withOpacity(0.4),
                     alignment: Alignment.center,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _showGo
-                          ? Text(
-                              'GO',
-                              key: const ValueKey('go'),
-                              style: GoogleFonts.fredoka(
-                                fontWeight: FontWeight.bold,
-                                fontSize: screenWidth * 0.18,
-                                color: Colors.yellowAccent,
-                                decoration: TextDecoration.none,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 12,
-                                    color: Colors.black.withOpacity(0.7),
-                                    offset: const Offset(2, 4),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Text(
-                              _countdown > 0 ? '$_countdown' : '',
-                              key: ValueKey(_countdown),
-                              style: GoogleFonts.fredoka(
-                                fontWeight: FontWeight.bold,
-                                fontSize: screenWidth * 0.18,
-                                color: Colors.white,
-                                decoration: TextDecoration.none,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 12,
-                                    color: Colors.black.withOpacity(0.7),
-                                    offset: const Offset(2, 4),
-                                  ),
-                                ],
-                              ),
+                    child: ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Text(
+                        countdownSequence[_countdownIndex < countdownSequence.length ? _countdownIndex : countdownSequence.length - 1],
+                        style: GoogleFonts.fredoka(
+                          fontWeight: FontWeight.bold,
+                          fontSize: screenWidth * 0.18,
+                          color: countdownSequence[_countdownIndex < countdownSequence.length ? _countdownIndex : countdownSequence.length - 1] == 'GO'
+                              ? Colors.yellowAccent
+                              : Colors.white,
+                          decoration: TextDecoration.none,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 12,
+                              color: Colors.black.withOpacity(0.7),
+                              offset: const Offset(2, 4),
                             ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -374,49 +346,30 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> with SingleTicke
                   child: Container(
                     color: Colors.black.withOpacity(0.4),
                     alignment: Alignment.center,
-                    child: AnimatedBuilder(
-                      animation: _scaleController,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: child,
-                        );
-                      },
-                      child: _showGo
-                          ? Text(
-                              'GO',
-                              key: const ValueKey('go'),
-                              style: GoogleFonts.fredoka(
-                                fontWeight: FontWeight.bold,
-                                fontSize: screenWidth * 0.18,
-                                color: const Color.fromARGB(255, 255, 255, 255),
-                                decoration: TextDecoration.none,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 12,
-                                    color: Colors.black.withOpacity(0.7),
-                                    offset: const Offset(2, 4),
-                                  ),
-                                ],
+                    child: AnimatedTextKit(
+                      animatedTexts: countdownSequence.map((text) =>
+                        ScaleAnimatedText(
+                          text,
+                          duration: const Duration(milliseconds: 400),
+                          textStyle: GoogleFonts.fredoka(
+                            fontWeight: FontWeight.bold,
+                            fontSize: screenWidth * 0.18,
+                            color: text == 'GO' ? Colors.yellowAccent : Colors.white,
+                            decoration: TextDecoration.none,
+                            shadows: [
+                              Shadow(
+                                blurRadius: 12,
+                                color: Colors.black.withOpacity(0.7),
+                                offset: const Offset(2, 4),
                               ),
-                            )
-                          : Text(
-                              _countdown > 0 ? '$_countdown' : '',
-                              key: ValueKey(_countdown),
-                              style: GoogleFonts.fredoka(
-                                fontWeight: FontWeight.bold,
-                                fontSize: screenWidth * 0.18,
-                                color: Colors.white,
-                                decoration: TextDecoration.none,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 12,
-                                    color: Colors.black.withOpacity(0.7),
-                                    offset: const Offset(2, 4),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            ],
+                          ),
+                        )
+                      ).toList(),
+                      isRepeatingAnimation: false,
+                      totalRepeatCount: 1,
+                      onFinished: () {},
+                      pause: Duration.zero,
                     ),
                   ),
                 ),
