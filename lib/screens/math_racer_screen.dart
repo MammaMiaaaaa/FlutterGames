@@ -5,6 +5,8 @@ import '../widgets/score_screen.dart';
 import '../screens/game_selection_screen.dart'; // Added import for GameSelectionScreen
 import '../models/math_racer_game_provider.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
+import 'package:flutter/animation.dart';
 
 class MathRacerScreen extends StatelessWidget {
   const MathRacerScreen({super.key});
@@ -25,8 +27,72 @@ class _MathRacerGameView extends StatefulWidget {
   State<_MathRacerGameView> createState() => _MathRacerGameViewState();
 }
 
-class _MathRacerGameViewState extends State<_MathRacerGameView> {
+class _MathRacerGameViewState extends State<_MathRacerGameView> with SingleTickerProviderStateMixin {
   bool _navigatedToScoreScreen = false;
+  int _countdown = 3;
+  bool _showGo = false;
+  bool _countdownDone = false;
+  Timer? _countdownTimer;
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _scaleController,
+      curve: Curves.easeOutBack,
+    );
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    setState(() {
+      _countdown = 3;
+      _showGo = false;
+      _countdownDone = false;
+    });
+    _countdownTimer?.cancel();
+    _scaleController.forward(from: 0);
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdown > 1) {
+        setState(() {
+          _countdown--;
+          _scaleController.forward(from: 0);
+        });
+      } else if (_countdown == 1) {
+        setState(() {
+          _countdown = 0;
+          _showGo = true;
+          _scaleController.forward(from: 0);
+        });
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) {
+            setState(() {
+              _showGo = false;
+              _countdownDone = true;
+              _scaleController.stop();
+            });
+            // Start the game timer and logic after countdown
+            final provider = Provider.of<MathRacerGameProvider>(context, listen: false);
+            provider.startGame();
+          }
+        });
+        _countdownTimer?.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _scaleController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +114,7 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> {
         final double buttonSpacing = screenHeight * 0.018;
         final double topPad = screenHeight * 0.03;
         final double sidePad = screenWidth * 0.04;
-        final options = provider.question.options.toList(); // Local copy
+        final options = provider.question?.options.toList() ?? [];
         final double finishLineRightPadding = screenWidth * 0.04; // Adjustable right padding for finish line
         // Navigate to score screen if time is up and not already navigated
         if (provider.gameEnded && !provider.gameWon && !_navigatedToScoreScreen) {
@@ -70,9 +136,63 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> {
             );
           });
         }
-        // Defensive: Only show answer buttons if options.length == 4
-        if (options.length != 4) {
-          return const Center(child: CircularProgressIndicator());
+        // Defensive: Only show game UI if countdown is done, question is ready, and options are valid
+        if (!_countdownDone || provider.question == null || options.length != 4) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/background/bg_grass.jpg',
+                fit: BoxFit.cover,
+              ),
+              // Countdown overlay
+              if (!_countdownDone)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.4),
+                    alignment: Alignment.center,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _showGo
+                          ? Text(
+                              'GO',
+                              key: const ValueKey('go'),
+                              style: GoogleFonts.fredoka(
+                                fontWeight: FontWeight.bold,
+                                fontSize: screenWidth * 0.18,
+                                color: Colors.yellowAccent,
+                                decoration: TextDecoration.none,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 12,
+                                    color: Colors.black.withOpacity(0.7),
+                                    offset: const Offset(2, 4),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Text(
+                              _countdown > 0 ? '$_countdown' : '',
+                              key: ValueKey(_countdown),
+                              style: GoogleFonts.fredoka(
+                                fontWeight: FontWeight.bold,
+                                fontSize: screenWidth * 0.18,
+                                color: Colors.white,
+                                decoration: TextDecoration.none,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 12,
+                                    color: Colors.black.withOpacity(0.7),
+                                    offset: const Offset(2, 4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+            ],
+          );
         }
         return Scaffold(
           appBar: AppBar(
@@ -81,173 +201,226 @@ class _MathRacerGameViewState extends State<_MathRacerGameView> {
             elevation: 0,
           ),
           extendBodyBehindAppBar: true,
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(
-                  'assets/background/bg_grass.jpg',
-                  fit: BoxFit.cover,
-                ),
-                SafeArea(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SizedBox(height: topPad),
-                      // --- Two-Track Race Progress Bar ---
-                      Container(
-                        width: double.infinity,
-                        height: trackHeight * 2 + trackSpacing,
-                        child: Column(
-                          children: [
-                            // Top track: Bingo (Corgi)
-                            SizedBox(
-                              height: trackHeight,
-                              child: Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  Positioned.fill(
-                                    child: Image.asset(
-                                      'assets/images/race-track.png',
-                                      fit: BoxFit.fill,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: finishLineRightPadding,
-                                    top: 0,
-                                    bottom: 0,
-                                    child: Image.asset(
-                                      'assets/images/finish-line.png',
-                                      height: finishLineSize,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                  TweenAnimationBuilder<double>(
-                                    tween: Tween<double>(
-                                      begin: provider.previousPlayerProgress,
-                                      end: provider.playerProgress,
-                                    ),
-                                    duration: const Duration(milliseconds: 400),
-                                    builder: (context, value, child) {
-                                      return Positioned(
-                                        left: (screenWidth - finishLineRightPadding - trackIconSize / 2) * value.clamp(0.0, 1.0),
-                                        top: 0,
-                                        child: Image.asset(
-                                          'assets/bingo/icon-bingo-walk.png',
-                                          height: trackIconSize,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: trackSpacing),
-                            // Bottom track: Rabbit
-                            SizedBox(
-                              height: trackHeight,
-                              child: Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  Positioned.fill(
-                                    child: Image.asset(
-                                      'assets/images/race-track.png',
-                                      fit: BoxFit.fill,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: finishLineRightPadding,
-                                    top: 0,
-                                    bottom: 0,
-                                    child: Image.asset(
-                                      'assets/images/finish-line.png',
-                                      height: finishLineSize,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                  TweenAnimationBuilder<double>(
-                                    tween: Tween<double>(
-                                      begin: provider.previousTimerProgress,
-                                      end: provider.timerProgress,
-                                    ),
-                                    duration: const Duration(milliseconds: 400),
-                                    builder: (context, value, child) {
-                                      return Positioned(
-                                        left: (screenWidth - finishLineRightPadding) * value.clamp(0.0, 1.0),
-                                        top: 0,
-                                        child: Image.asset(
-                                          'assets/images/rabbit.png',
-                                          height: trackIconSize,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.04),
-                      // Question Box with instruction
-                      Container(
-                        margin: EdgeInsets.symmetric(horizontal: sidePad),
-                        padding: EdgeInsets.symmetric(vertical: questionBoxPadV, horizontal: questionBoxPadH),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Pilih jawaban yang benar',
-                              style: GoogleFonts.fredoka(
-                                fontWeight: FontWeight.w600,
-                                fontSize: instructionFontSize,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(height: screenHeight * 0.01),
-                            Text(
-                              provider.question.question,
-                              style: GoogleFonts.fredoka(
-                                fontWeight: FontWeight.w600,
-                                fontSize: questionFontSize,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.05),
-                      // Answer Buttons
-                      ...List.generate(4, (i) => Padding(
-                        padding: EdgeInsets.fromLTRB(sidePad, 10, sidePad, 0),
-                        child: SizedBox(
-                          height: buttonHeight,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/background/bg_grass.jpg',
+                fit: BoxFit.cover,
+              ),
+              SafeArea(
+                child: AbsorbPointer(
+                  absorbing: !_countdownDone,
+                  child: Opacity(
+                    opacity: _countdownDone ? 1.0 : 0.5,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        SizedBox(height: topPad),
+                        // --- Two-Track Race Progress Bar ---
+                        Container(
                           width: double.infinity,
-                          child: _AnimatedAnswerButton(
-                            key: Key('answer_button_$i'),
-                            text: '${options[i]}',
-                            onPressed: provider.gameEnded ? null : () => _onAnswer(context, provider, options[i]),
-                            fontSize: buttonFontSize,
+                          height: trackHeight * 2 + trackSpacing,
+                          child: Column(
+                            children: [
+                              // Top track: Bingo (Corgi)
+                              SizedBox(
+                                height: trackHeight,
+                                child: Stack(
+                                  alignment: Alignment.centerLeft,
+                                  children: [
+                                    Positioned.fill(
+                                      child: Image.asset(
+                                        'assets/images/race-track.png',
+                                        fit: BoxFit.fill,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: finishLineRightPadding,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Image.asset(
+                                        'assets/images/finish-line.png',
+                                        height: finishLineSize,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        begin: provider.previousPlayerProgress,
+                                        end: provider.playerProgress,
+                                      ),
+                                      duration: const Duration(milliseconds: 400),
+                                      builder: (context, value, child) {
+                                        return Positioned(
+                                          left: (screenWidth - finishLineRightPadding - trackIconSize / 2) * value.clamp(0.0, 1.0),
+                                          top: 0,
+                                          child: Image.asset(
+                                            'assets/bingo/icon-bingo-walk.png',
+                                            height: trackIconSize,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: trackSpacing),
+                              // Bottom track: Rabbit
+                              SizedBox(
+                                height: trackHeight,
+                                child: Stack(
+                                  alignment: Alignment.centerLeft,
+                                  children: [
+                                    Positioned.fill(
+                                      child: Image.asset(
+                                        'assets/images/race-track.png',
+                                        fit: BoxFit.fill,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: finishLineRightPadding,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Image.asset(
+                                        'assets/images/finish-line.png',
+                                        height: finishLineSize,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        begin: provider.previousTimerProgress,
+                                        end: provider.timerProgress,
+                                      ),
+                                      duration: const Duration(milliseconds: 500),
+                                      builder: (context, value, child) {
+                                        return Positioned(
+                                          left: (screenWidth - finishLineRightPadding - trackIconSize) * value.clamp(0.0, 1.0),
+                                          top: 0,
+                                          child: Image.asset(
+                                            'assets/images/rabbit.png',
+                                            height: trackIconSize,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      )),
-                      const Spacer(),
-                      SizedBox(height: screenHeight * 0.02),
-                    ],
+                        SizedBox(height: screenHeight * 0.05),
+                        // Question Box with instruction
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: sidePad),
+                          padding: EdgeInsets.symmetric(vertical: questionBoxPadV, horizontal: questionBoxPadH),
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Pilih jawaban yang benar',
+                                style: GoogleFonts.fredoka(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: instructionFontSize,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: screenHeight * 0.01),
+                              Text(
+                                provider.question!.question,
+                                style: GoogleFonts.fredoka(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: questionFontSize,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: screenHeight * 0.05),
+                        // Answer Buttons
+                        ...List.generate(4, (i) => Padding(
+                          padding: EdgeInsets.fromLTRB(sidePad, 10, sidePad, 0),
+                          child: SizedBox(
+                            height: buttonHeight,
+                            width: double.infinity,
+                            child: _AnimatedAnswerButton(
+                              key: Key('answer_button_$i'),
+                              text: '${provider.question!.options[i]}',
+                              onPressed: provider.gameEnded ? null : () => _onAnswer(context, provider, options[i]),
+                              fontSize: buttonFontSize,
+                            ),
+                          ),
+                        )),
+                        const Spacer(),
+                        SizedBox(height: screenHeight * 0.02),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              // Countdown overlay
+              if (!_countdownDone)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.4),
+                    alignment: Alignment.center,
+                    child: AnimatedBuilder(
+                      animation: _scaleController,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _scaleAnimation.value,
+                          child: child,
+                        );
+                      },
+                      child: _showGo
+                          ? Text(
+                              'GO',
+                              key: const ValueKey('go'),
+                              style: GoogleFonts.fredoka(
+                                fontWeight: FontWeight.bold,
+                                fontSize: screenWidth * 0.18,
+                                color: const Color.fromARGB(255, 255, 255, 255),
+                                decoration: TextDecoration.none,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 12,
+                                    color: Colors.black.withOpacity(0.7),
+                                    offset: const Offset(2, 4),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Text(
+                              _countdown > 0 ? '$_countdown' : '',
+                              key: ValueKey(_countdown),
+                              style: GoogleFonts.fredoka(
+                                fontWeight: FontWeight.bold,
+                                fontSize: screenWidth * 0.18,
+                                color: Colors.white,
+                                decoration: TextDecoration.none,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 12,
+                                    color: Colors.black.withOpacity(0.7),
+                                    offset: const Offset(2, 4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },

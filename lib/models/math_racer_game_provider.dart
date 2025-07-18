@@ -16,14 +16,13 @@ class MathRacerGameProvider extends ChangeNotifier {
   double previousPlayerProgress = 0.0;
   double previousTimerProgress = 0.0;
   double timerProgress = 0.0;
-  late MathQuestion question;
+  MathQuestion? question;
   Timer? timer;
 
   VoidCallback? onGameOver;
   VoidCallback? onGameWon;
 
   MathRacerGameProvider() {
-    startGame();
   }
 
   void startGame() {
@@ -58,8 +57,8 @@ class MathRacerGameProvider extends ChangeNotifier {
   }
 
   void answer(int selected) {
-    if (gameEnded) return;
-    if (selected == question.answer) {
+    if (gameEnded || question == null) return;
+    if (selected == question!.answer) {
       correctAnswers++;
       previousPlayerProgress = playerProgress;
       playerProgress = correctAnswers / totalQuestions;
